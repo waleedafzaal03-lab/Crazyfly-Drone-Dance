@@ -1,0 +1,163 @@
+FOUR-DRONE FLOW-DECK DANCE - START HERE
+
+Your addresses are already written into four_drone_dance.py:
+  Drone 1  0xE7E7E7E701  FRONT LEFT
+  Drone 2  0xE7E7E7E702  FRONT RIGHT
+  Drone 3  0xE7E7E7E703  BACK LEFT
+  Drone 4  0xE7E7E7E704  BACK RIGHT
+
+WHAT THE PROGRAM DOES
+All selected drones take off together to 50 cm, hover, make a small outward
+fan, return to their own centres, sway left/right, sway forward/back, return
+to their own centres, and land together. There are eight movements of 3 s,
+each followed by 0.4 s settling. The dance is about 38 s airborne.
+The hover test is about 11 s airborne. No LED decks are needed.
+
+WHAT THE PROGRAM CANNOT GUARANTEE
+The PLANNED paths do not overlap, change places, or stack drones vertically.
+Flow decks only estimate relative motion. They cannot see other drones or
+measure a shared absolute room position. Drift, bad tracking, wrong starting
+placement, or hardware/radio failures can still cause a collision. This code
+does not guarantee that one real drone can never get beneath another.
+The position boundary and separation checks use Flow ESTIMATES and your
+manually measured starting layout. They cannot catch all physical drift.
+Software tests used simulated hardware; there has been no physical flight test.
+
+1. PREPARE THE FLOOR AND DRONES
+Use a clear indoor floor area of at least 5 m x 5 m for the supplied layout.
+Provide even lighting and a flat, matte, visibly textured floor. Avoid shiny
+tiles, featureless surfaces, large black patches and strong moving shadows.
+Place the four centres on the corners of a 2 m x 2 m square in the centre of
+that area. See floor_layout.png. Every nose faces the SAME direction, FRONT.
+Adjacent drone centres must be 2 m apart, both across and front-to-back.
+Mark positions beside the drones with small tape marks; keep texture under
+the Flow cameras. All drones start on the same floor level and stay still
+through preflight and countdown. Keep people outside the flight area.
+Use charged batteries (the preflight resting-voltage threshold is 3.90 V).
+All four must have working Flow decks underneath, as you have already tested.
+
+Do not shrink the pad spacing or enlarge the movements for the first flight.
+The command path stays within +/-20 cm of each pad in X and Y. The path boxes
+have at least a 1.6 m gap, assuming perfect tracking. All flight heights are
+the same; there are no vertical waves, yaw spins, crossings or position swaps.
+
+2. VERIFY THE RADIO SETTINGS IN CFCLIENT
+The address alone does not include the radio channel or data rate.
+Connect to each Crazyflie in cfclient and note its full radio URI, for example:
+  radio://0/80/2M/E7E7E7E701
+This example means radio index 0, channel 80, rate 2M, address E7E7E7E701.
+For this one-Crazyradio script, ALL FOUR must use the SAME channel and rate.
+Keep each of your four addresses exactly as listed above.
+If their channels/rates differ, set one common choice in cfclient using
+Connect > Configure 2.x, write the settings, restart, and reconnect to verify.
+Changing a radio channel does not change the four addresses.
+80 and 2M in the commands below are EXAMPLES. Use your actual common settings.
+Close cfclient before running Python; it must release the Crazyradio.
+
+3. INSTALL ON UBUNTU / LINUX
+Download four_drone_dance.zip into your Downloads folder. In a terminal:
+
+  mkdir -p ~/crazyflie_dance
+  python3 -m zipfile -e ~/Downloads/four_drone_dance.zip ~/crazyflie_dance
+  cd ~/crazyflie_dance
+  python3 -m venv .venv
+  source .venv/bin/activate
+  python -m pip install --upgrade pip
+  python -m pip install -r requirements.txt
+
+Python 3.10+ is required. If creating the virtual environment fails because
+venv is missing, install it with:
+  sudo apt install python3-venv python3-pip
+Then repeat the venv creation and activation commands.
+Because Crazyradio already works in cfclient, the USB permissions are likely
+already configured. Do not run the flight program using sudo.
+
+For every new terminal, start with:
+  cd ~/crazyflie_dance
+  source .venv/bin/activate
+
+Set your ACTUAL radio settings. For example, only if yours are 80 and 2M:
+  CHANNEL=80
+  RATE=2M
+
+4. READ THE PLAN WITHOUT CONNECTING
+  python four_drone_dance.py --plan
+
+5. IDENTIFY THE FOUR REAL DRONES
+With all four powered on, cfclient closed, and Crazyradio plugged in:
+  python four_drone_dance.py --channel "$CHANNEL" --rate "$RATE" --identify
+
+The program connects using your four prewritten addresses and flashes each
+drone's onboard lights three times, one drone at a time. This does not use an
+LED deck and sends no motor/arming commands. Label the four drones and place
+them in the positions shown in floor_layout.png.
+
+6. CHECK ALL FOUR WITHOUT STARTING MOTORS
+  python four_drone_dance.py --channel "$CHANNEL" --rate "$RATE" --check
+
+Keep all drones still on the floor. This resets each local estimator and
+checks the Flow flags, battery, telemetry and estimator stability. It sends
+no arming or motor commands. Wait until it prints four READY messages and
+that all selected drones passed preflight. Fix any reported error first.
+
+7. TEST ONE DRONE WITH THIS SCRIPT
+  python four_drone_dance.py --channel "$CHANNEL" --rate "$RATE" --hover --only 1
+
+Only Drone 1 takes off. Confirm a steady hover above its own pad and a normal
+landing. You can similarly use --only 2, --only 3 or --only 4 if necessary.
+This checks this Python program, even though individual cfclient flights
+already work. These two methods use different control paths.
+
+8. HOVER ALL FOUR
+  python four_drone_dance.py --channel "$CHANNEL" --rate "$RATE" --hover
+
+All selected drones must pass before any takeoff. Watch their starting layout
+and actual drift. If any is not holding its own area, press Ctrl+C once and
+fix the floor/tracking issue before the dance.
+
+9. RUN THE FOUR-DRONE DANCE
+  python four_drone_dance.py --channel "$CHANNEL" --rate "$RATE" --dance
+
+The script checks all four, counts down from five, confirms arming on every
+selected drone, and then sends each stage to all drones in parallel. The next
+movement waits for the complete previous duration plus a settling interval.
+After about 38 s airborne, all four land in their own areas and disarm.
+
+10. STOPPING
+Press Ctrl+C ONCE to request a straight landing of all started drones. Keep
+the terminal open and radio connected until landing/cleanup has finished.
+The descent takes about 3 s, followed by a short settling interval and motor
+stop. A lost radio link can prevent that drone receiving the landing command;
+the program still tries to land the other reachable drones. Closing the
+terminal, unplugging the radio, or killing Python cannot guarantee a landing.
+
+CHECKS DURING FLIGHT
+- Fresh position and estimator telemetry; one-second stale-data limit.
+- Reported supervisor crash/tumble/lock/deck fault.
+- Estimated XY boundary +/-0.45 m around each local starting origin.
+- Excessive estimated height or estimator variance.
+- Reported tracking error after each completed movement.
+- Sustained low battery and range/altitude disagreement.
+- Estimated horizontal separation less than 1.20 m, using the assumed layout.
+An error requests landing of the whole group. These checks are useful but
+cannot establish real positions independently of Flow odometry.
+
+COMMON PROBLEMS
+Cannot connect: check that all four are powered, cfclient is closed, and
+channel/rate/address match. An address ending 01 is not radio channel 01.
+Flow not detected: inspect mounting with power disconnected and re-test it.
+Battery below 3.90 V: charge the battery before this approximately 38 s run.
+Estimator does not settle: keep the drone still; check floor texture/light.
+Telemetry stale: keep the radio nearby; check interference/connection.
+Estimated boundary/target error: inspect the actual drift and floor before
+retrying; do not just increase the limits to silence the error.
+Arming not confirmed: inspect cfclient Console/supervisor status while grounded.
+Do not remove the all-drone preflight or arming barrier.
+
+SOURCES
+Bitcraze Swarm tutorial:
+https://www.bitcraze.io/documentation/repository/crazyflie-lib-python/master/user-guides/sbs_swarm_interface/
+Flow limitations:
+https://www.bitcraze.io/2023/11/go-with-the-flow-relative-positioning-with-the-flow-deck/
+High-level commander API:
+https://www.bitcraze.io/documentation/repository/crazyflie-lib-python/master/api/cflib/crazyflie/high_level_commander/
